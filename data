@@ -1,0 +1,86 @@
+import pandas as pd
+import numpy as np
+
+
+file_path = 'DataEngineeringQ2.json'  # Update the file path if necessary
+data = pd.read_json(file_path)
+
+
+patients = pd.json_normalize(data['patientDetails'])
+consultations = pd.json_normalize(data['consultationData'])
+
+# Question 1: Calculate missing percentages for firstName, lastName, and DOB (birthDate)
+
+columns_to_check = ['firstName', 'lastName', 'birthDate']
+total_rows = len(patients)
+missing_percentages = [
+    round((patients[col].isnull().sum() + (patients[col] == '').sum()) / total_rows * 100, 2)
+    for col in columns_to_check
+]
+print(f"Q1: {missing_percentages[0]}, {missing_percentages[1]}, {missing_percentages[2]}")
+
+# Question 2: Impute missing gender values and calculate percentage of females
+
+def calculate_female_percentage():
+    patients['gender'] = patients['gender'].replace('', np.nan)
+    mode_gender = patients['gender'].mode()[0]
+    patients['gender'] = patients['gender'].fillna(mode_gender)
+    female_percentage = round((patients['gender'] == 'F').sum() / total_rows * 100, 2)
+    return female_percentage
+
+female_percentage = calculate_female_percentage()
+print(f"Q2: {female_percentage}")
+
+# Question 3: Categorize into age groups and count adults
+
+current_year = pd.Timestamp.now().year
+patients['birthDate'] = pd.to_datetime(patients['birthDate'], errors='coerce')
+patients['age'] = current_year - patients['birthDate'].dt.year
+patients['ageGroup'] = pd.cut(
+    patients['age'],
+    bins=[0, 12, 19, 59, np.inf],
+    labels=['Child', 'Teen', 'Adult', 'Senior'],
+    right=False
+)
+adult_count = (patients['ageGroup'] == 'Adult').sum()
+print(f"Q3: {adult_count}")
+
+# Question 4: Average number of medicines prescribed
+
+consultations['medicine_count'] = consultations['medicines'].apply(len)
+average_medicines = round(consultations['medicine_count'].mean(), 2)
+print(f"Q4: {average_medicines}")
+
+# Question 5: 3rd most frequently prescribed medicine
+
+all_medicines = pd.json_normalize(data['consultationData'], 'medicines')
+third_most_prescribed = (
+    all_medicines['medicineName']
+    .value_counts()
+    .index[2]  # 3rd most frequent
+)
+print(f"Q5: {third_most_prescribed}")
+
+# Question 6: Percentage distribution of active and inactive medicines
+
+active_medicines = all_medicines['isActive'].value_counts(normalize=True) * 100
+active_inactive_percentages = active_medicines.round(2).tolist()
+print(f"Q6: {active_inactive_percentages[0]}, {active_inactive_percentages[1]}")
+
+# Question 7: Average number of medicines prescribed in the dataset
+
+average_medicines_dataset = round(all_medicines.groupby('_id').size().mean(), 2)
+print(f"Q7: {average_medicines_dataset}")
+
+# Question 8: 3rd most frequently prescribed medicineName
+
+medicine_frequency = all_medicines['medicineName'].value_counts()
+third_most_frequent_medicine = medicine_frequency.index[2]  # 3rd most common
+print(f"Q8: {third_most_frequent_medicine}")
+
+# Question 9: Percentage distribution of active and inactive medicines
+
+total_active_inactive = all_medicines['isActive'].value_counts(normalize=True) * 100
+active_percentage = round(total_active_inactive.get(True, 0), 2)
+inactive_percentage = round(total_active_inactive.get(False, 0), 2)
+print(f"Q9: {active_percentage}, {inactive_percentage}")
